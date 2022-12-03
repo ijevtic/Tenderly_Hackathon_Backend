@@ -24,6 +24,16 @@ def get_organizations(wallet_number):
   
   return organizations
 
+def get_all_organizations():
+  organizations = []
+  if db.users is None:
+    return []
+  organization_cursor = db.users.find({"role": "organization"})
+  for organization in organization_cursor:
+    organizations.append(organization)
+  
+  return organizations
+
 def get_user(wallet_number):
   user = db.users.find_one({"wallet_number":wallet_number})
   return user
@@ -51,22 +61,19 @@ class USERS(Resource):
 
     def get(self):
 
-      wallet_number = request.args.get('wallet_number')
-      users = []
-      wallet_number = wallet_number.lower()
-      db_user_organization = db.user_organization
+      wallet_number = request.args.get('wallet_number').lower()
       if db.users is None:
-        return
+        return {"message": "db not working yet..."}, 404
       
       user = get_user(wallet_number)
       if user == None:
-        return {"role": "None"}, 404
+        return {"role": "None", "message": "User doesnt exist!"}, 404
       if user["role"] == "user":
         return {"role": "user", "organizations": get_organizations(wallet_number)}, 200
       if user["role"] == "organization":
         return {"role": "organization"}, 200
 
-      return {"message": "User doesnt exist!"}, 404
+      return {"message": "nesto ne radi"}, 404
     
     def post(self):
       parser = reqparse.RequestParser()
@@ -87,10 +94,30 @@ class USERS(Resource):
         return put_organization(data)
       return {"message": "Wrong role!"}, 404
 
+class ORGANIZATIONS(Resource):
+    def get(self):
+      if db.users is None:
+        return {"message": "db not working yet..."}, 404
+      wallet_number = request.args.get('wallet_number').lower()
+      user = get_user(wallet_number)
+      if user is None:
+        return {"role": "None", "message": "User doesnt exist!"}, 404
+      organizations = get_all_organizations()
+      user_organizations = get_organizations(wallet_number)
+      open_organizations = []
+      for org in organizations:
+        if org["wallet_number"] not in user_organizations:
+          open_organizations.append({"wallet_number": org["wallet_number"], "name": org["name"]})
+      
+      return {"organizations": open_organizations}, 200
+
+
+
+
 
 # api.add_resource(APY, '/apy')
 api.add_resource(USERS, '/users', endpoint="users")
-
+api.add_resource(ORGANIZATIONS, '/organizations', endpoint="organizations")
 
 # provider_url = 'https://kovan.infura.io/v3/75fe0c9d66ad48a7ba1e3c5ca2ac94a9'
 
@@ -112,50 +139,6 @@ def get_database():
   CONNECTION_STRING = os.getenv('CONNECTION_STRING')
   client = MongoClient(CONNECTION_STRING)
   return client['UserData']
-
-
-# def get_object(json_object):
-#     return {
-#         "user": json_object['args']['user'].lower(),
-#         "amount": json_object['args']['amount'],
-#         "event": json_object['args']['transactionType'],
-#         "block_number": json_object['blockNumber'],
-#         "oldAmount": json_object['args']['oldAmount'],
-#         "newAmount": json_object['args']['newAmount'],
-#         "old_c": json_object['args']['old_c'],
-#         "new_c": json_object['args']['new_c']
-#     }
-
-
-# def create_transaction_object(jsonEvent, table, type):
-#     x = Object()
-#     json_object = json.loads(jsonEvent)
-#     row = dict()
-#     x = dict()
-#     print(json_object)
-#     if type == "transaction":
-#         row = get_object(json_object)
-#         x = get_object(json_object)
-#     else:
-#         row = {"event": "WithdrawInterest",
-#                "block_number": json_object['blockNumber']}
-#         x = {"event": "WithdrawInterest",
-#              "block_number": json_object['blockNumber']}
-
-#     if x["event"] == "Withdraw":
-#         base, interest = calculate_base_interest(transactions, x)
-#         x["base"] = base
-#         x["interest"] = interest
-#         row["base"] = base
-#         row["interest"] = interest
-
-#     if(x["user"] not in users_transaction_history):
-#         users_transaction_history[x["user"]] = []
-#     users_transaction_history[x["user"]].append(x)
-
-#     transactions.append(x)
-
-#     table.insert_one(row)
 
 
 if __name__ == '__main__':
