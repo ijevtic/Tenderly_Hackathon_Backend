@@ -166,8 +166,9 @@ def get_database():
 
 if __name__ == '__main__':
   db = get_database()
-  serve(app, host="0.0.0.0", port=5000)
-  app.run(use_reloader=False)
+  # serve(app, host="0.0.0.0", port=5000)
+  app.run(debug=True,host='0.0.0.0',port=int(os.environ.get('PORT', 5000)))
+  # app.run(use_reloader=False)
   
   # apy_table = dbname.apy
   # transactions_table = dbname.transactions
