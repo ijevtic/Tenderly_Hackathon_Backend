@@ -79,8 +79,11 @@ class USERS(Resource):
       parser = reqparse.RequestParser()
       parser.add_argument('wallet_number', type=str)
       parser.add_argument('role', type=str)
+      parser.add_argument('first_name', type=str)
+      parser.add_argument('last_name', type=str)
 
       data = parser.parse_args()
+      # print(data, "data")
 
       wallet_number = data['wallet_number'].lower()
 
@@ -110,9 +113,6 @@ class ORGANIZATIONS(Resource):
           open_organizations.append({"wallet_number": org["wallet_number"], "name": org["name"]})
       
       return {"organizations": open_organizations}, 200
-
-
-
 
 
 # api.add_resource(APY, '/apy')
