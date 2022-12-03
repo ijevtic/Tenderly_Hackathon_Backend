@@ -104,6 +104,10 @@ class ORGANIZATIONS(Resource):
         return {"message": "db not working yet..."}, 403
       wallet_number = request.args.get('wallet_number').lower()
       member = request.args.get('member')
+      if member == 'true':
+        member = True
+      else:
+        member = False
       user = get_user(wallet_number)
       if user is None:
         return {"role": "None", "message": "User doesnt exist!"}, 400
