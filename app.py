@@ -25,6 +25,26 @@ def get_organizations(wallet_number):
   
   return organizations
 
+def get_user(wallet_number):
+  user = db.users.find_one({"wallet_number":wallet_number})
+  return user
+
+def put_user(data):
+  row = dict()
+  row["role"] = data["role"]
+  row["first_name"] = data["first_name"]
+  row["last_name"] = data["last_name"]
+  row["wallet_number"] = data["wallet_number"].lower()
+  db.users.insert_one(row)
+  return json_util.dumps({"message": "User succesfully created!"})
+
+def put_organization(data):
+  row = dict()
+  row["wallet_number"] = data["wallet_number"].lower()
+  row["role"] = data["role"]
+  db.users.insert_one(row)
+  return json_util.dumps({"message": "Organization succesfully created!"})
+
 class Object(object):
     pass
 
@@ -42,23 +62,35 @@ class USERS(Resource):
       if db.users is None:
         return
       
-      user = db.users.find_one({"wallet_number":wallet_number})
+      user = get_user(wallet_number)
       if user == None:
         return json_util.dumps({"role": "None"})
       if user["role"] == "user":
         return json_util.dumps({"role": "user", "organizations": get_organizations(wallet_number)})
       if user["role"] == "organization":
         return json_util.dumps({"role": "organization"})
-      # for user in user_cursor:
-      #   if wallet_number == user["wallet_number"]:
-      #     if user["role"] == "user":
-      #       get_organizations(wallet_number)
-
-      #   print("user ", user["wallet_number"], user["first_name"], user["last_name"], user["role"])
-      #   users.append({"wallet_number": user["wallet_number"], "first_name": user["first_name"],
-      #   "last_name": user["last_name"], "role": user["role"]})
 
       return json_util.dumps(None)
+    
+    def post(self):
+      parser = reqparse.RequestParser()
+      parser.add_argument('wallet_number', type=str)
+      parser.add_argument('role', type=str)
+
+      data = parser.parse_args()
+
+      wallet_number = data['wallet_number'].lower()
+
+      if get_user(wallet_number) is not None:
+        return json_util.dumps({"message": "User already exists!"})
+
+      role = data['role']
+      if role == "user":
+        return put_user(data)
+      if role == "organization":
+        return put_organization(data)
+      return json_util.dumps({"message": "Wrong role!"})
+
 
 # api.add_resource(APY, '/apy')
 api.add_resource(USERS, '/users', endpoint="users")
