@@ -1,15 +1,12 @@
-from flask import Flask
+from flask import Flask, request
 from flask_restful import reqparse, abort, Api, Resource
 from web3 import Web3
 import time
 import json
 import os
 from dotenv import load_dotenv
-import bson.json_util as json_util
 from flask_cors import CORS
 from pymongo import MongoClient
-from waitress import serve
-
 
 app = Flask(__name__)
 CORS(app)
@@ -38,14 +35,14 @@ def put_user(data):
   row["last_name"] = data["last_name"]
   row["wallet_number"] = data["wallet_number"].lower()
   db.users.insert_one(row)
-  return json_util.dumps({"message": "User succesfully created!"})
+  return {"message": "User succesfully created!"}, 201
 
 def put_organization(data):
   row = dict()
   row["wallet_number"] = data["wallet_number"].lower()
   row["role"] = data["role"]
   db.users.insert_one(row)
-  return json_util.dumps({"message": "Organization succesfully created!"})
+  return {"message": "Organization succesfully created!"}, 201
 
 class Object(object):
     pass
@@ -54,10 +51,7 @@ class USERS(Resource):
 
     def get(self):
 
-      parser = reqparse.RequestParser()
-      parser.add_argument('wallet_number', type=str)
-
-      wallet_number = parser.parse_args()['wallet_number']
+      wallet_number = request.args.get('wallet_number')
       users = []
       wallet_number = wallet_number.lower()
       db_user_organization = db.user_organization
@@ -66,13 +60,13 @@ class USERS(Resource):
       
       user = get_user(wallet_number)
       if user == None:
-        return json_util.dumps({"role": "None"})
+        return {"role": "None"}, 404
       if user["role"] == "user":
-        return json_util.dumps({"role": "user", "organizations": get_organizations(wallet_number)})
+        return {"role": "user", "organizations": get_organizations(wallet_number)}, 200
       if user["role"] == "organization":
-        return json_util.dumps({"role": "organization"})
+        return {"role": "organization"}, 200
 
-      return json_util.dumps(None)
+      return {"message": "User doesnt exist!"}, 404
     
     def post(self):
       parser = reqparse.RequestParser()
@@ -84,14 +78,14 @@ class USERS(Resource):
       wallet_number = data['wallet_number'].lower()
 
       if get_user(wallet_number) is not None:
-        return json_util.dumps({"message": "User already exists!"})
+        return {"message": "User already exists!"}, 404
 
       role = data['role']
       if role == "user":
         return put_user(data)
       if role == "organization":
         return put_organization(data)
-      return json_util.dumps({"message": "Wrong role!"})
+      return {"message": "Wrong role!"}, 404
 
 
 # api.add_resource(APY, '/apy')
