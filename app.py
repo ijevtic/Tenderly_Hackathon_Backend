@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 from flask_cors import CORS
 from pymongo import MongoClient
+from compile_contract import compile
 
 app = Flask(__name__)
 CORS(app)
@@ -102,6 +103,7 @@ class ORGANIZATIONS(Resource):
       if db.users is None:
         return {"message": "db not working yet..."}, 403
       wallet_number = request.args.get('wallet_number').lower()
+      member = request.args.get('member')
       user = get_user(wallet_number)
       if user is None:
         return {"role": "None", "message": "User doesnt exist!"}, 400
@@ -109,7 +111,8 @@ class ORGANIZATIONS(Resource):
       user_organizations = get_organizations(wallet_number)
       open_organizations = []
       for org in organizations:
-        if org["wallet_number"] not in user_organizations:
+        if ((not member) and (org["wallet_number"] not in user_organizations)) or \
+           (member and (org["wallet_number"] in user_organizations)):
           open_organizations.append({"wallet_number": org["wallet_number"], "name": org["name"]})
       
       return {"organizations": open_organizations}, 200
@@ -143,8 +146,10 @@ def get_database():
 
 if __name__ == '__main__':
   db = get_database()
+  # compile()
   # serve(app, host="0.0.0.0", port=5000)
   app.run(debug=True,host='0.0.0.0',port=int(os.environ.get('PORT', 5000)))
+
   # app.run(use_reloader=False)
   
   # apy_table = dbname.apy
