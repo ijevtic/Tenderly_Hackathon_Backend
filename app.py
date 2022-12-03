@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 from flask_cors import CORS
 from pymongo import MongoClient
-from compile_contract import compile
+# from compile_contract import compile
 
 app = Flask(__name__)
 CORS(app)
