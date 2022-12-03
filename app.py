@@ -60,7 +60,7 @@ class USERS(Resource):
       
       user = get_user(wallet_number)
       if user == None:
-        return {"role": "None"}, 404
+        return "{'role': 'None'}", 404
       if user["role"] == "user":
         return {"role": "user", "organizations": get_organizations(wallet_number)}, 200
       if user["role"] == "organization":
