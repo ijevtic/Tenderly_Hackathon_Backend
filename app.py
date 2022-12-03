@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 import bson.json_util as json_util
 from flask_cors import CORS
 from pymongo import MongoClient
+from waitress import serve
+
 
 app = Flask(__name__)
 CORS(app)
@@ -164,6 +166,7 @@ def get_database():
 
 if __name__ == '__main__':
   db = get_database()
+  serve(app, host="0.0.0.0", port=5000)
   app.run(use_reloader=False)
   
   # apy_table = dbname.apy
