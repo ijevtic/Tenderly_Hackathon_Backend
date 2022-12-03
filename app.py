@@ -63,17 +63,17 @@ class USERS(Resource):
 
       wallet_number = request.args.get('wallet_number').lower()
       if db.users is None:
-        return {"message": "db not working yet..."}, 404
+        return {"message": "db not working yet..."}, 403
       
       user = get_user(wallet_number)
       if user == None:
-        return {"role": "None", "message": "User doesnt exist!"}, 404
+        return {"role": "None", "message": "User doesnt exist!"}, 400
       if user["role"] == "user":
         return {"role": "user", "organizations": get_organizations(wallet_number)}, 200
       if user["role"] == "organization":
         return {"role": "organization"}, 200
 
-      return {"message": "nesto ne radi"}, 404
+      return {"message": "nesto ne radi"}, 403
     
     def post(self):
       parser = reqparse.RequestParser()
@@ -88,23 +88,23 @@ class USERS(Resource):
       wallet_number = data['wallet_number'].lower()
 
       if get_user(wallet_number) is not None:
-        return {"message": "User already exists!"}, 404
+        return {"message": "User already exists!"}, 400
 
       role = data['role']
       if role == "user":
         return put_user(data)
       if role == "organization":
         return put_organization(data)
-      return {"message": "Wrong role!"}, 404
+      return {"message": "Wrong role!"}, 400
 
 class ORGANIZATIONS(Resource):
     def get(self):
       if db.users is None:
-        return {"message": "db not working yet..."}, 404
+        return {"message": "db not working yet..."}, 403
       wallet_number = request.args.get('wallet_number').lower()
       user = get_user(wallet_number)
       if user is None:
-        return {"role": "None", "message": "User doesnt exist!"}, 404
+        return {"role": "None", "message": "User doesnt exist!"}, 400
       organizations = get_all_organizations()
       user_organizations = get_organizations(wallet_number)
       open_organizations = []
