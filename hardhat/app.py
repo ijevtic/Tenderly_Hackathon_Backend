@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_restful import reqparse, abort, Api, Resource
 from web3 import Web3
 import os
@@ -19,7 +19,6 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 api = Api(app)
-pending_org_mapping = dict()
 pending_filters = dict()
 
 db = None
@@ -43,11 +42,7 @@ def put_organization(data):
   row["wallet_number"] = compile_and_deploy_contract(data["name"], data["wallet_number"])
   row["owner"] = data["wallet_number"].lower()
   row['abi'] = 'not'
-  # abi = get_abi(data["wallet_number"])
-  # if 'not' in abi:
-    # row["abi"] = abi
-  # else:
-    # row["abi"] = json.loads(abi)
+
   db.organizations.insert_one(row)
   return {"message": "Organization succesfully created!"}, 201
 
@@ -119,27 +114,33 @@ class PENDING(Resource):
     def get(self):
       owner = request.args.get('wallet_number').lower()
 
+      print('poceo')
       wallet_number = get_org_from_owner(owner,db)
+      print('zavrsio', wallet_number)
       if wallet_number is None:
-        return {"message", "no such organization"}, 403
+        return {"message": "no such organization"}, 403
+      wallet_number = wallet_number['wallet_number']
       
-      users = get_pending_for_organization(wallet_number,db)
-      return users, 200
+      users = db.org_pending.find({'organization': wallet_number})
+      ret_users = []
+      for user in users:
+        ret_users.append(user["user"])
+      return ret_users, 200
+      # return json.dumps(pending_org_mapping[wallet_number]), 200
+
 
 
 
 # api.add_resource(APY, '/apy')
 api.add_resource(USERS, '/users', endpoint="users")
 api.add_resource(ORGANIZATIONS, '/organizations', endpoint="organizations")
-api.add_resource(PENDING, '/organizations/pending', endpoint="organizations/pending")
+api.add_resource(PENDING, '/organizations_pending', endpoint="organizations/pending")
 
 w3 = Web3(Web3.HTTPProvider(os.getenv('GOERLI_RPC_URL')))
 
 
 def update_pending():
-  global pending_org_mapping
   global w3
-  pending_org_mapping = dict()
   organizations = get_all_organizations(db)
   for org in organizations:
     if 'not' in org["abi"]:
@@ -147,55 +148,40 @@ def update_pending():
       if 'not' in org["abi"]:
         continue
       org["abi"] = json.loads(org["abi"])
+      
     contract_main = w3.eth.contract(
       address=org["wallet_number"], abi=org["abi"])
     org_filter_leave = contract_main.events.Join.createFilter(
-      fromBlock='latest')
+      fromBlock=1)
     org_filter_join = contract_main.events.JoinRequest.createFilter(
-      fromBlock='latest')
+      fromBlock=1)
     for row in org_filter_join.get_all_entries():
       print(row, "join")
-      if row['address'] not in pending_org_mapping:
-        continue
-      pending_org_mapping[row['address']].add(row['args']['adr'])
+      if db.org_pending.find_one({"organization" : row["address"], "user": row["args"]["adr"]}) is None:
+        db.org_pending.insert_one({"organization" : row["address"], "user": row["args"]["adr"]})
     for row in org_filter_leave.get_all_entries():
-      if row['address'] not in pending_org_mapping or row['args']['adr'] not in pending_org_mapping[row['address']]:
-        continue
-      pending_org_mapping[row['address']].remove(row['args']['adr'])
+      print(row, "leave")
+      db.org_pending.delete_one({"organization" : row["address"], "user": row["args"]["adr"]})
+      db.user_org.insert_one({"organization" : row["address"], "wallet_number":row["args"]["adr"]})
+
     db.organizations.update_one({"wallet_number": org["wallet_number"]}, { "$set": { 'abi': org["abi"] }})
 
-  db.org_pending.drop()
-  for org in pending_org_mapping:
-    for user in pending_org_mapping[org]:
-      row = dict()
-      row["organization"] = org
-      row["user"] = user
-      db.org_pending.insert_one(row)
-
-
-def restore_pending():
-  global pending_org_mapping
-  if db.org_pending is None:
-    return
-  pending_users_cursor = db.org_pending.find()
-  for pending_user in pending_users_cursor:
-    if pending_user["organization"] not in pending_org_mapping:
-      pending_org_mapping[pending_user["organization"]] = [(pending_user["user"])]
-    else:
-      pending_org_mapping[pending_user["organization"]].append(pending_user["user"])
-
+  # db.org_pending.drop()
+  # for org in pending_org_mapping:
+  #   for user in pending_org_mapping[org]:
+  #     row = dict()
+  #     row["organization"] = org
+  #     row["user"] = user
+  #     db.org_pending.insert_one(row)
 
 def get_database():
   CONNECTION_STRING = os.getenv('CONNECTION_STRING')
   client = MongoClient(CONNECTION_STRING)
-  return client['UserData']
+  return client[os.getenv('DATABASE')]
 
 
 if __name__ == '__main__':
   db = get_database()
-
-  restore_pending()
-
 
   # compile()
   # serve(app, host="0.0.0.0", port=5000)

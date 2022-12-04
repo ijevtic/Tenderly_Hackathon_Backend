@@ -1,5 +1,5 @@
 module.exports = [
-"novi",
-"0x4aeceb6486d25d5015bf8f8323914a36204ed4b7",
-true,
+"prvi",
+"0xffb7b3e07822ede23a8a9b3a5db3a956126125a3",
+false,
 ]
