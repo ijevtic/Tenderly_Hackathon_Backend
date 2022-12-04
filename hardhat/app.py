@@ -8,6 +8,7 @@ from pymongo import MongoClient
 from automate_deploy import compile_and_deploy_contract
 from abi_aa import get_abi
 import json
+import collections.abc
 from apscheduler.schedulers.background import BackgroundScheduler
 from get_functions import get_organizations, get_all_organizations, get_user, get_org_from_owner, get_pending_for_organization
 
@@ -136,7 +137,9 @@ w3 = Web3(Web3.HTTPProvider(os.getenv('GOERLI_RPC_URL')))
 
 
 def update_pending():
+  global pending_org_mapping
   global w3
+  pending_org_mapping = dict()
   organizations = get_all_organizations(db)
   for org in organizations:
     if 'not' in org["abi"]:
@@ -152,9 +155,23 @@ def update_pending():
       fromBlock='latest')
     for row in org_filter_join.get_all_entries():
       print(row, "join")
+      if row['address'] not in pending_org_mapping:
+        continue
+      pending_org_mapping[row['address']].add(row['args']['adr'])
     for row in org_filter_leave.get_all_entries():
-      print(row, "leave")
+      if row['address'] not in pending_org_mapping or row['args']['adr'] not in pending_org_mapping[row['address']]:
+        continue
+      pending_org_mapping[row['address']].remove(row['args']['adr'])
     db.organizations.update_one({"wallet_number": org["wallet_number"]}, { "$set": { 'abi': org["abi"] }})
+
+  db.org_pending.drop()
+  for org in pending_org_mapping:
+    for user in pending_org_mapping[org]:
+      row = dict()
+      row["organization"] = org
+      row["user"] = user
+      db.org_pending.insert_one(row)
+
 
 def restore_pending():
   global pending_org_mapping
@@ -162,7 +179,10 @@ def restore_pending():
     return
   pending_users_cursor = db.org_pending.find()
   for pending_user in pending_users_cursor:
-    pending_org_mapping[pending_user["organization"]].append(pending_user["user"])
+    if pending_user["organization"] not in pending_org_mapping:
+      pending_org_mapping[pending_user["organization"]] = [(pending_user["user"])]
+    else:
+      pending_org_mapping[pending_user["organization"]].append(pending_user["user"])
 
 
 def get_database():

@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/ijevtic/Tenderly_Hackathon_Backend/hardhat/contracts/CustomContract.sol": {
-      "lastModificationDate": 1670120603543,
-      "contentHash": "769b5be04e1ef65301a1b12686b80950",
+      "lastModificationDate": 1670137319668,
+      "contentHash": "63b952d9a7e3e6e825c04bea4557dddb",
       "sourceName": "contracts/CustomContract.sol",
       "solcConfig": {
         "version": "0.8.17",
