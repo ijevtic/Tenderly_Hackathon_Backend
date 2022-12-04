@@ -5,4 +5,4 @@ pymongo==3.12.3
 python-dotenv==0.21.0
 waitress==2.1.2
 web3==5.31.3
-appcheduler=3.9.1
+appcheduler==3.9.1
