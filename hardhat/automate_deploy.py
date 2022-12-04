@@ -25,6 +25,7 @@ def compile_and_deploy_contract(contract_name, contract_owner):
   cmd = ['npx', 'hardhat', 'run', 'deploy/deploy.js', '--network', 'goerli']
   output = subprocess.Popen( cmd, stdout=subprocess.PIPE ).communicate()[0]
   output = str(output)
+  print('lolcinaaaaaaa', output)
   ind = output.rstrip().rindex('0x')
   address = output[ind:-3]
   print("-----",address,"-----", output, "----")
