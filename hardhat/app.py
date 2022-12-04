@@ -75,9 +75,10 @@ class USERS(Resource):
       data = parser.parse_args()
       # print(data, "data")
 
-      wallet_number = data['wallet_number'].lower()
+      data['wallet_number'] = data['wallet_number'].lower()
 
-      if (get_user(wallet_number,db) is not None) or (get_org_from_owner(wallet_number,db) is not None):
+
+      if (get_user(data['wallet_number'],db) is not None) or (get_org_from_owner(data['wallet_number'],db) is not None):
         return {"message": "User already exists!"}, 400
 
       role = data['role']
@@ -101,8 +102,14 @@ class ORGANIZATIONS(Resource):
       if user is None:
         return {"role": "None", "message": "User doesnt exist!"}, 400
       organizations = get_all_organizations(db)
+      print("wallet_number", wallet_number)
       user_organizations = get_organizations(wallet_number,db)
+      print("org1",organizations)
+      print("org2",user_organizations)
+      if member:
+        return user_organizations, 200
       open_organizations = []
+      
       for org in organizations:
         if ((not member) and (org["wallet_number"] not in user_organizations)) or \
            (member and (org["wallet_number"] in user_organizations)):
@@ -114,9 +121,7 @@ class PENDING(Resource):
     def get(self):
       owner = request.args.get('wallet_number').lower()
 
-      print('poceo')
       wallet_number = get_org_from_owner(owner,db)
-      print('zavrsio', wallet_number)
       if wallet_number is None:
         return {"message": "no such organization"}, 403
       wallet_number = wallet_number['wallet_number']
@@ -156,15 +161,15 @@ def update_pending():
     org_filter_join = contract_main.events.JoinRequest.createFilter(
       fromBlock=1)
     for row in org_filter_join.get_all_entries():
-      print(row, "join")
-      if db.org_pending.find_one({"organization" : row["address"], "user": row["args"]["adr"]}) is None:
-        db.org_pending.insert_one({"organization" : row["address"], "user": row["args"]["adr"]})
+      print("join")
+      if db.org_pending.find_one({"organization" : row["address"].lower()}, {"user": row["args"]["adr"].lower()}) is None:
+        db.org_pending.insert_one({"organization" : row["address"].lower(), "user": row["args"]["adr"].lower()})
     for row in org_filter_leave.get_all_entries():
-      print(row, "leave")
-      db.org_pending.delete_one({"organization" : row["address"], "user": row["args"]["adr"]})
-      db.user_org.insert_one({"organization" : row["address"], "wallet_number":row["args"]["adr"]})
+      print("leave")
+      db.org_pending.delete_one({"organization" : row["address"].lower(), "user": row["args"]["adr"].lower()})
+      db.user_organization.insert_one({"organization" : row["address"].lower(), "wallet_number":row["args"]["adr"].lower()})
 
-    db.organizations.update_one({"wallet_number": org["wallet_number"]}, { "$set": { 'abi': org["abi"] }})
+    db.organizations.update_one({"wallet_number": org["wallet_number"].lower()}, { "$set": { 'abi': org["abi"] }})
 
   # db.org_pending.drop()
   # for org in pending_org_mapping:

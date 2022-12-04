@@ -12,7 +12,7 @@ def get_abi(address):
 
   response = requests.get(ABI_ENDPOINT)
   response_json = response.json()
-  print("---------------------------")
-  print(response_json['result'])
+  # print("---------------------------")
+  # print(response_json['result'])
   # abi_json = json.loads(response_json['result'])
   return response_json['result']
