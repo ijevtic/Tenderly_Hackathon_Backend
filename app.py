@@ -52,6 +52,7 @@ def put_organization(data):
   row = dict()
   row["wallet_number"] = data["wallet_number"].lower()
   row["role"] = data["role"]
+  row["name"] = data["name"]
   db.users.insert_one(row)
   return {"message": "Organization succesfully created!"}, 201
 
@@ -82,6 +83,7 @@ class USERS(Resource):
       parser.add_argument('role', type=str)
       parser.add_argument('first_name', type=str)
       parser.add_argument('last_name', type=str)
+      parser.add_argument('name', type=str)
 
       data = parser.parse_args()
       # print(data, "data")
