@@ -12,8 +12,6 @@ import collections.abc
 from apscheduler.schedulers.background import BackgroundScheduler
 from get_functions import get_organizations, get_all_organizations, get_user, get_org_from_owner, get_pending_for_organization
 
-# from compile_contract import compile
-
 load_dotenv()
 
 app = Flask(__name__)
@@ -39,7 +37,7 @@ def put_organization(data):
   row = dict()
   row["role"] = data["role"]
   row["name"] = data["name"]
-  row["wallet_number"] = compile_and_deploy_contract(data["name"], data["wallet_number"])
+  row["wallet_number"] = compile_and_deploy_contract(data["name"], data["wallet_number"]).lower()
   row["owner"] = data["wallet_number"].lower()
   row['abi'] = 'not'
 
@@ -59,7 +57,7 @@ class USERS(Resource):
       org = get_org_from_owner(wallet_number,db)
       if user == None and org == None:
         return {"role": "None", "message": "User/Organization doesnt exist!"}, 400
-      if user:
+      if user is not None:
         return {"role": "user", "organizations": get_organizations(wallet_number, db)}, 200
       
       return {"role": "organization"}, 200
@@ -102,12 +100,13 @@ class ORGANIZATIONS(Resource):
       if user is None:
         return {"role": "None", "message": "User doesnt exist!"}, 400
       organizations = get_all_organizations(db)
+      
       print("wallet_number", wallet_number)
       user_organizations = get_organizations(wallet_number,db)
       print("org1",organizations)
       print("org2",user_organizations)
-      if member:
-        return user_organizations, 200
+      # if member:
+      #   return user_organizations, 200
       open_organizations = []
       
       for org in organizations:
@@ -124,14 +123,12 @@ class PENDING(Resource):
       wallet_number = get_org_from_owner(owner,db)
       if wallet_number is None:
         return {"message": "no such organization"}, 403
-      wallet_number = wallet_number['wallet_number']
       
       users = db.org_pending.find({'organization': wallet_number})
       ret_users = []
       for user in users:
         ret_users.append(user["user"])
       return ret_users, 200
-      # return json.dumps(pending_org_mapping[wallet_number]), 200
 
 
 
@@ -148,36 +145,29 @@ def update_pending():
   global w3
   organizations = get_all_organizations(db)
   for org in organizations:
-    if 'not' in org["abi"]:
+    if 'not' == org["abi"]:
       org["abi"] = get_abi(org["wallet_number"])
       if 'not' in org["abi"]:
         continue
       org["abi"] = json.loads(org["abi"])
       
     contract_main = w3.eth.contract(
-      address=org["wallet_number"], abi=org["abi"])
+      address=Web3.toChecksumAddress(org["wallet_number"]), abi=org["abi"])
     org_filter_leave = contract_main.events.Join.createFilter(
       fromBlock=1)
     org_filter_join = contract_main.events.JoinRequest.createFilter(
       fromBlock=1)
     for row in org_filter_join.get_all_entries():
       print("join")
-      if db.org_pending.find_one({"organization" : row["address"].lower()}, {"user": row["args"]["adr"].lower()}) is None:
+      if db.org_pending.find_one({"organization" : row["address"].lower(), "user": row["args"]["adr"].lower()}) is None:
         db.org_pending.insert_one({"organization" : row["address"].lower(), "user": row["args"]["adr"].lower()})
     for row in org_filter_leave.get_all_entries():
       print("leave")
       db.org_pending.delete_one({"organization" : row["address"].lower(), "user": row["args"]["adr"].lower()})
-      db.user_organization.insert_one({"organization" : row["address"].lower(), "wallet_number":row["args"]["adr"].lower()})
+      if db.user_organization.find_one({"organization" : row["address"].lower(), "wallet_number":row["args"]["adr"].lower()}) is None:
+        db.user_organization.insert_one({"organization" : row["address"].lower(), "wallet_number":row["args"]["adr"].lower()})
 
     db.organizations.update_one({"wallet_number": org["wallet_number"].lower()}, { "$set": { 'abi': org["abi"] }})
-
-  # db.org_pending.drop()
-  # for org in pending_org_mapping:
-  #   for user in pending_org_mapping[org]:
-  #     row = dict()
-  #     row["organization"] = org
-  #     row["user"] = user
-  #     db.org_pending.insert_one(row)
 
 def get_database():
   CONNECTION_STRING = os.getenv('CONNECTION_STRING')

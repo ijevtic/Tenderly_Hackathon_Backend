@@ -28,7 +28,9 @@ def get_org_from_owner(owner,db):
   if not db.organizations:
     return None
   org = db.organizations.find_one({"owner":owner})
-  return org
+  if org is None:
+    return None
+  return org['wallet_number']
 
 def get_pending_for_organization(wallet_number,db):
   users = []
