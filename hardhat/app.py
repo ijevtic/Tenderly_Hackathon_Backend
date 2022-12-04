@@ -1,12 +1,11 @@
 from flask import Flask, request
 from flask_restful import reqparse, abort, Api, Resource
 from web3 import Web3
-import time
-import json
 import os
 from dotenv import load_dotenv
 from flask_cors import CORS
 from pymongo import MongoClient
+from automate_deploy import compile_and_deploy_contract
 # from compile_contract import compile
 
 app = Flask(__name__)
@@ -27,17 +26,25 @@ def get_organizations(wallet_number):
 
 def get_all_organizations():
   organizations = []
-  if db.users is None:
+  if db.organizations is None:
     return []
-  organization_cursor = db.users.find({"role": "organization"})
+  organization_cursor = db.organizations.find()
   for organization in organization_cursor:
     organizations.append(organization)
   
   return organizations
 
 def get_user(wallet_number):
+  if not db.users:
+    return None
   user = db.users.find_one({"wallet_number":wallet_number})
   return user
+
+def get_org_from_owner(owner):
+  if not db.organizations:
+    return None
+  org = db.organizations.find_one({"owner":owner})
+  return org
 
 def put_user(data):
   row = dict()
@@ -50,10 +57,12 @@ def put_user(data):
 
 def put_organization(data):
   row = dict()
-  row["wallet_number"] = data["wallet_number"].lower()
   row["role"] = data["role"]
   row["name"] = data["name"]
-  db.users.insert_one(row)
+  row["wallet_number"] = compile_and_deploy_contract(data["name"], data["wallet_number"])
+  row["owner"] = data["wallet_number"].lower()
+  
+  db.organizations.insert_one(row)
   return {"message": "Organization succesfully created!"}, 201
 
 class Object(object):
@@ -64,18 +73,16 @@ class USERS(Resource):
     def get(self):
 
       wallet_number = request.args.get('wallet_number').lower()
-      if db.users is None:
-        return {"message": "db not working yet..."}, 403
       
       user = get_user(wallet_number)
-      if user == None:
-        return {"role": "None", "message": "User doesnt exist!"}, 400
-      if user["role"] == "user":
+      org = get_org_from_owner(wallet_number)
+      if user == None and org == None:
+        return {"role": "None", "message": "User/Organization doesnt exist!"}, 400
+      if user:
         return {"role": "user", "organizations": get_organizations(wallet_number)}, 200
-      if user["role"] == "organization":
-        return {"role": "organization"}, 200
+      
+      return {"role": "organization"}, 200
 
-      return {"message": "nesto ne radi"}, 403
     
     def post(self):
       parser = reqparse.RequestParser()
@@ -90,7 +97,7 @@ class USERS(Resource):
 
       wallet_number = data['wallet_number'].lower()
 
-      if get_user(wallet_number) is not None:
+      if (get_user(wallet_number) is not None) or (get_org_from_owner(wallet_number) is not None):
         return {"message": "User already exists!"}, 400
 
       role = data['role']

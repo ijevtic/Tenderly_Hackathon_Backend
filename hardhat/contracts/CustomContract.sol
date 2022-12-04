@@ -1,9 +1,9 @@
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.9;
 
 // We import this library to be able to use console.log
 
-// error CustomContract__NotOwner();
-// error CustomContract__TransactionFailed();
+error CustomContract__NotOwner();
+error CustomContract__TransactionFailed();
 
 
 contract CustomContract {
@@ -19,8 +19,8 @@ contract CustomContract {
     event JoinRequest(address indexed adr, string message);
 
     modifier onlyOwner() {
-        // if (msg.sender != owner) revert  CustomContract__NotOwner();
-        if (msg.sender != owner) revert();
+        if (msg.sender != owner) revert  CustomContract__NotOwner();
+        // if (msg.sender != owner) revert();
 
         _;
     }
@@ -47,8 +47,8 @@ contract CustomContract {
             amount = address(this).balance;
 
         (bool sent, ) = payable(msg.sender).call{value: amount}("");
-        // if (sent == false) revert CustomContract__TransactionFailed();
-        if (sent == false) revert();
+        if (sent == false) revert CustomContract__TransactionFailed();
+        // if (sent == false) revert();
     }
 
     
